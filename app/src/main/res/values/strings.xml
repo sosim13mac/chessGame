@@ -2,7 +2,7 @@
     <string name="app_name">비디오 캐처</string>
 
     <!-- Toolbar -->
-    <string name="url_hint">검색어 또는 주소 입력</string>
+    <string name="url_hint">Google 검색 또는 주소 입력</string>
     <string name="action_back">뒤로</string>
     <string name="action_forward">앞으로</string>
     <string name="action_home">홈</string>

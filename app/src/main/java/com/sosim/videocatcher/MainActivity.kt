@@ -19,6 +19,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.view.Gravity
 import android.view.KeyEvent
 import android.view.View
@@ -34,6 +35,7 @@ import android.webkit.PermissionRequest
 import android.webkit.RenderProcessGoneDetail
 import android.webkit.URLUtil
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
@@ -110,6 +112,10 @@ class MainActivity : Activity(), SnifferBridge.Listener, VideoListSheet.Callback
     private var pillVideoId = -1L
     private var pendingPermissionAction: (() -> Unit)? = null
     private var blankPoster: Bitmap? = null
+    private var guessedHost: GuessedHost? = null
+
+    /** Address-bar text that was opened as "https://<text>" without the user typing a scheme. */
+    private class GuessedHost(val host: String, val query: String, val at: Long)
 
     private var customView: View? = null
     private var customViewCallback: WebChromeClient.CustomViewCallback? = null
@@ -248,12 +254,18 @@ class MainActivity : Activity(), SnifferBridge.Listener, VideoListSheet.Callback
 
     private fun setupControls() {
         urlInput.setOnEditorActionListener { _, actionId, event ->
-            val enterKey = event != null && event.keyCode == KeyEvent.KEYCODE_ENTER && event.action == KeyEvent.ACTION_DOWN
-            if (actionId == EditorInfo.IME_ACTION_GO || actionId == EditorInfo.IME_ACTION_DONE || enterKey) {
-                submitAddress()
-                true
-            } else {
-                false
+            when {
+                // The keyboard's action key (Go, Search, Done... depending on the keyboard app).
+                event == null -> {
+                    if (actionId != EditorInfo.IME_ACTION_NONE) submitAddress()
+                    actionId != EditorInfo.IME_ACTION_NONE
+                }
+                // Keyboards that send the Enter key itself (and hardware keyboards).
+                event.keyCode == KeyEvent.KEYCODE_ENTER || event.keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER -> {
+                    if (event.action == KeyEvent.ACTION_DOWN) submitAddress()
+                    true
+                }
+                else -> false
             }
         }
         urlInput.setOnFocusChangeListener { _, hasFocus ->
@@ -290,20 +302,32 @@ class MainActivity : Activity(), SnifferBridge.Listener, VideoListSheet.Callback
 
     private fun loadHome() = loadUrl(HOME_URL)
 
+    /** Opens what was typed in the address bar: a web address, or a Google search for anything else. */
     private fun submitAddress() {
-        val url = UrlInput.toUrl(urlInput.text.toString()) ?: return
+        val text = urlInput.text.toString().trim()
+        val url = UrlInput.toUrl(text) ?: return
+        // "node.js" looks like a site; if no such site exists, search Google for it instead.
+        guessedHost = if (UrlInput.isGuessedHost(text)) {
+            Uri.parse(url).host?.let { GuessedHost(it, text, SystemClock.elapsedRealtime()) }
+        } else {
+            null
+        }
         hideKeyboard()
         urlInput.clearFocus()
         webView.requestFocus()
         loadUrl(url)
     }
 
+    /** Links opened with this app, and text shared to it from other apps ("Share" in another browser). */
     private fun openFromIntent(intent: Intent?): Boolean {
         val url = when (intent?.action) {
             Intent.ACTION_VIEW -> intent.dataString?.takeIf { MediaUrlClassifier.isHttpUrl(it) }
-            Intent.ACTION_SEND -> intent.getStringExtra(Intent.EXTRA_TEXT)?.let { UrlInput.extractUrl(it) }
+            // EXTRA_TEXT may be a styled CharSequence, which getStringExtra() would drop.
+            Intent.ACTION_SEND -> intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.let { UrlInput.fromSharedText(it.toString()) }
             else -> null
         } ?: return false
+        guessedHost = null
+        if (customView != null) hideCustomView()
         loadUrl(url)
         return true
     }
@@ -1021,6 +1045,18 @@ class MainActivity : Activity(), SnifferBridge.Listener, VideoListSheet.Callback
             updateNavigationButtons()
         }
 
+        override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
+            if (!request.isForMainFrame || error.errorCode != WebViewClient.ERROR_HOST_LOOKUP) return
+            val guess = guessedHost ?: return
+            guessedHost = null
+            // The typed text looked like a site name but no such site exists: search for it.
+            if (request.url.host.equals(guess.host, ignoreCase = true) &&
+                SystemClock.elapsedRealtime() - guess.at < GUESS_TIMEOUT_MS
+            ) {
+                view.loadUrl(UrlInput.searchUrl(guess.query))
+            }
+        }
+
         override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
             // Runs on a background thread for every request of the page; only observe.
             val url = request.url.toString()
@@ -1069,6 +1105,7 @@ class MainActivity : Activity(), SnifferBridge.Listener, VideoListSheet.Callback
     private companion object {
         const val HOME_URL = "file:///android_asset/home.html"
         const val PILL_DURATION_MS = 6_000L
+        const val GUESS_TIMEOUT_MS = 30_000L
         const val REQUEST_STORAGE = 10
         const val REQUEST_NOTIFICATIONS = 11
     }
