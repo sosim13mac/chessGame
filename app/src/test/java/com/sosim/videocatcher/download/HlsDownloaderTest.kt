@@ -1,7 +1,5 @@
 package com.sosim.videocatcher.download
 
-import com.sun.net.httpserver.HttpExchange
-import com.sun.net.httpserver.HttpServer
 import com.sosim.videocatcher.net.HttpFetcher
 import org.junit.After
 import org.junit.Assert.assertArrayEquals
@@ -13,8 +11,6 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import java.io.ByteArrayOutputStream
-import java.net.InetSocketAddress
-import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 
 class HlsDownloaderTest {
@@ -22,45 +18,30 @@ class HlsDownloaderTest {
     @get:Rule
     val temp = TemporaryFolder()
 
-    private lateinit var server: HttpServer
+    private lateinit var server: TestHttpServer
     private lateinit var base: String
-    private val routes = ConcurrentHashMap<String, (HttpExchange) -> Unit>()
-    private val requestHeaders = ConcurrentHashMap<String, String>()
 
     @Before
     fun startServer() {
-        server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
-        server.createContext("/") { exchange ->
-            val path = exchange.requestURI.path
-            exchange.requestHeaders.getFirst("Referer")?.let { requestHeaders["Referer"] = it }
-            val handler = routes[path]
-            if (handler == null) {
-                exchange.sendResponseHeaders(404, -1)
-                exchange.close()
-            } else {
-                handler(exchange)
-            }
-        }
-        server.start()
-        base = "http://127.0.0.1:${server.address.port}"
+        server = TestHttpServer()
+        base = server.baseUrl
     }
 
     @After
-    fun stopServer() = server.stop(0)
+    fun stopServer() = server.close()
 
     private fun serve(path: String, body: ByteArray, contentType: String = "application/octet-stream", honorRange: Boolean = true) {
-        routes[path] = { exchange ->
-            val range = exchange.requestHeaders.getFirst("Range")
-            exchange.responseHeaders.add("Content-Type", contentType)
+        server.routes[path] = { request ->
+            val range = request.header("Range")
             if (range != null && honorRange) {
                 val (start, end) = range.removePrefix("bytes=").split('-').map { it.toInt() }
-                val slice = body.copyOfRange(start, end + 1)
-                exchange.responseHeaders.add("Content-Range", "bytes $start-$end/${body.size}")
-                exchange.sendResponseHeaders(206, slice.size.toLong())
-                exchange.responseBody.use { it.write(slice) }
+                TestHttpServer.Response(
+                    206,
+                    body.copyOfRange(start, end + 1),
+                    mapOf("Content-Type" to contentType, "Content-Range" to "bytes $start-$end/${body.size}"),
+                )
             } else {
-                exchange.sendResponseHeaders(200, body.size.toLong())
-                exchange.responseBody.use { it.write(body) }
+                TestHttpServer.Response(200, body, mapOf("Content-Type" to contentType))
             }
         }
     }
@@ -100,15 +81,13 @@ class HlsDownloaderTest {
         assertEquals(7, calls.get())
         val expected = ByteArrayOutputStream().apply { segments.forEach { write(it) } }.toByteArray()
         assertArrayEquals(expected, output.readBytes())
-        assertEquals("https://site.example/page", requestHeaders["Referer"])
+        assertEquals("https://site.example/page", server.requests.first().header("Referer"))
     }
 
     @Test
     fun followsRedirectsAndResolvesAgainstTheFinalUrl() {
-        routes["/start.m3u8"] = { exchange ->
-            exchange.responseHeaders.add("Location", "/real/path/list.m3u8")
-            exchange.sendResponseHeaders(302, -1)
-            exchange.close()
+        server.routes["/start.m3u8"] = {
+            TestHttpServer.Response(302, headers = mapOf("Location" to "/real/path/list.m3u8"))
         }
         serveText("/real/path/list.m3u8", "#EXTM3U\n#EXTINF:2,\na.ts\n#EXT-X-ENDLIST\n")
         val segment = tsSegment(9)
@@ -195,14 +174,8 @@ class HlsDownloaderTest {
         serveText("/t/list.m3u8", "#EXTM3U\n#EXTINF:2,\nflaky.ts\n#EXT-X-ENDLIST\n")
         val data = tsSegment(4)
         val attempts = AtomicInteger()
-        routes["/t/flaky.ts"] = { exchange ->
-            if (attempts.incrementAndGet() < 3) {
-                exchange.sendResponseHeaders(503, -1)
-                exchange.close()
-            } else {
-                exchange.sendResponseHeaders(200, data.size.toLong())
-                exchange.responseBody.use { it.write(data) }
-            }
+        server.routes["/t/flaky.ts"] = {
+            if (attempts.incrementAndGet() < 3) TestHttpServer.Response(503) else TestHttpServer.Response(200, data)
         }
         val dl = downloader()
         val output = dl.download(dl.resolve("$base/t/list.m3u8", null).video, "video") {}
