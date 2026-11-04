@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>비디오 캐처</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --card: #f4f4f8;
+    --text: #1c1c22;
+    --muted: #6a6a78;
+    --brand: #5b5bf0;
+    --border: #e3e3ea;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #121216;
+      --card: #1e1e25;
+      --text: #ececf1;
+      --muted: #a0a0ad;
+      --brand: #8c8cff;
+      --border: #2c2c35;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); }
+  body {
+    font-family: system-ui, -apple-system, "Noto Sans KR", sans-serif;
+    padding: 32px 18px 40px;
+    max-width: 560px;
+    margin: 0 auto;
+    line-height: 1.5;
+  }
+  .logo {
+    width: 56px; height: 56px; border-radius: 16px;
+    background: var(--brand);
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 14px;
+  }
+  h1 { font-size: 24px; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 22px; font-size: 14px; }
+  form { display: flex; gap: 8px; margin-bottom: 26px; }
+  input[type=search] {
+    flex: 1; min-width: 0;
+    font-size: 16px; padding: 12px 16px;
+    border-radius: 24px; border: 1px solid var(--border);
+    background: var(--card); color: var(--text); outline: none;
+  }
+  input[type=search]:focus { border-color: var(--brand); }
+  button {
+    border: 0; border-radius: 24px; padding: 0 18px;
+    background: var(--brand); color: #fff; font-size: 15px; font-weight: 600;
+  }
+  h2 { font-size: 15px; margin: 0 0 10px; }
+  ol { margin: 0 0 26px; padding-left: 20px; color: var(--text); font-size: 14px; }
+  ol li { margin-bottom: 6px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 26px; }
+  .grid a {
+    display: block; padding: 14px; border-radius: 14px;
+    background: var(--card); color: var(--text); text-decoration: none;
+    border: 1px solid var(--border);
+  }
+  .grid a b { display: block; font-size: 14px; }
+  .grid a span { color: var(--muted); font-size: 12px; }
+  .note { color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+  <div class="logo" aria-hidden="true">
+    <svg width="30" height="30" viewBox="0 0 24 24"><path fill="#fff" d="M4 5h16a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zm6 3v6l5-3z"/><path fill="#fff" d="M11 18h2v2h2l-3 3-3-3h2z"/></svg>
+  </div>
+  <h1>비디오 캐처</h1>
+  <p class="sub">웹에서 동영상을 재생하면 자동으로 감지해 내려받을 수 있어요.</p>
+
+  <form action="https://www.google.com/search" method="get">
+    <input type="search" name="q" placeholder="검색어 또는 주소" autocomplete="off" aria-label="검색어">
+    <button type="submit">검색</button>
+  </form>
+
+  <h2>사용 방법</h2>
+  <ol>
+    <li>동영상이 있는 페이지로 이동해 동영상을 <b>재생</b>합니다.</li>
+    <li>화면 아래에 <b>“동영상 감지됨”</b> 알림이 뜨면 <b>다운로드</b>를 누릅니다.</li>
+    <li>감지된 목록은 아래 막대의 동영상 버튼에서 언제든 볼 수 있습니다.</li>
+  </ol>
+
+  <h2>자유 이용 동영상</h2>
+  <div class="grid">
+    <a href="https://www.pexels.com/videos/"><b>Pexels</b><span>무료 스톡 동영상</span></a>
+    <a href="https://pixabay.com/videos/"><b>Pixabay</b><span>무료 스톡 동영상</span></a>
+    <a href="https://archive.org/details/movies"><b>Internet Archive</b><span>퍼블릭 도메인 영상</span></a>
+    <a href="https://commons.wikimedia.org/wiki/Category:Videos"><b>Wikimedia Commons</b><span>자유 라이선스 영상</span></a>
+  </div>
+
+  <p class="note">저작권이 있는 동영상은 권리자가 허락한 경우에만 내려받고, 각 사이트의 이용약관을 지켜 주세요.
+    DRM·암호화 스트림과 라이브 방송은 다운로드할 수 없습니다.</p>
+
+  <script>
+    // Typing a web address into the search box opens it directly.
+    document.querySelector('form').addEventListener('submit', function (event) {
+      var value = this.q.value.trim();
+      if (/^https?:\/\//i.test(value)) {
+        event.preventDefault();
+        location.href = value;
+      } else if (/^[^\s\/]+\.[a-z]{2,}(\/\S*)?$/i.test(value)) {
+        event.preventDefault();
+        location.href = 'https://' + value;
+      }
+    });
+  </script>
+</body>
+</html>

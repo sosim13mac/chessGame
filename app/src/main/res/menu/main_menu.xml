@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/menu_desktop_mode"
+        android:checkable="true"
+        android:title="@string/menu_desktop_mode" />
+    <item
+        android:id="@+id/menu_share"
+        android:title="@string/menu_share" />
+    <item
+        android:id="@+id/menu_clear_videos"
+        android:title="@string/menu_clear_videos" />
+    <item
+        android:id="@+id/menu_downloads"
+        android:title="@string/menu_downloads" />
+    <item
+        android:id="@+id/menu_about"
+        android:title="@string/menu_about" />
+</menu>

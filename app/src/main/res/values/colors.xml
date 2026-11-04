@@ -1,0 +1,23 @@
+<resources>
+    <color name="brand">#5B5BF0</color>
+    <color name="brand_on">#FFFFFF</color>
+    <color name="brand_soft">#A9A9FF</color>
+    <color name="window_background">#FFFFFF</color>
+    <color name="bar_background">#F6F6F9</color>
+    <color name="surface">#FFFFFF</color>
+    <color name="field_background">#E9E9F0</color>
+    <color name="text_primary">#1C1C22</color>
+    <color name="text_secondary">#5E5E6B</color>
+    <color name="text_tertiary">#8E8E9A</color>
+    <color name="icon_tint">#3C3C46</color>
+    <color name="badge">#E5484D</color>
+    <color name="badge_text">#FFFFFF</color>
+    <color name="chip_background">#E8E8FF</color>
+    <color name="chip_text">#3F3FC8</color>
+    <color name="playing">#1E8E4E</color>
+    <color name="pill_background">#26262F</color>
+    <color name="pill_text">#FFFFFF</color>
+    <color name="sheet_handle">#33000000</color>
+    <color name="fullscreen_button">#99000000</color>
+    <color name="ic_launcher_background">#5B5BF0</color>
+</resources>
